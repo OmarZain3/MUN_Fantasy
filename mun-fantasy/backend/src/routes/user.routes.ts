@@ -145,7 +145,7 @@ userRouter.patch("/fantasy/players/:playerId/sub", async (req, res, next) => {
 
 userRouter.get("/players", async (_req, res, next) => {
   try {
-    const players = await prisma.player.findMany({ orderBy: [{ team: "asc" }, { name: "asc" }] });
+    const players = await prisma.player.findMany({ orderBy: [{ name: "asc" }, { team: "asc" }] });
     res.json(players);
   } catch (e) {
     next(e);

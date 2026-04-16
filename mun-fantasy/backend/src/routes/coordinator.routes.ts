@@ -30,7 +30,7 @@ coordinatorRouter.get("/match/:matchId/players", async (req, res, next) => {
     const match = await prisma.match.findUniqueOrThrow({ where: { id: req.params.matchId } });
     const players = await prisma.player.findMany({
       where: { team: { in: [match.teamA, match.teamB] } },
-      orderBy: [{ team: "asc" }, { isGK: "asc" }, { name: "asc" }],
+      orderBy: [{ name: "asc" }, { team: "asc" }, { isGK: "asc" }],
     });
     res.json({ match, players });
   } catch (e) {
