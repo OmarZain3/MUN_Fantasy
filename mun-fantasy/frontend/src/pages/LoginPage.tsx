@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { authRequestErrorMessage } from "../lib/authRequestErrorMessage";
 import { disconnectSocket } from "../lib/socket";
 import { useAuthStore } from "../store/authStore";
 
@@ -30,11 +31,7 @@ export function LoginPage() {
       setAuth(data.token, data.user.email, data.user.isAdmin, Boolean(data.user.isCoordinator));
       navigate("/market", { replace: true });
     } catch (err: unknown) {
-      const msg =
-        typeof err === "object" && err && "response" in err
-          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Login failed")
-          : "Login failed";
-      setError(msg);
+      setError(authRequestErrorMessage(err, "Login failed"));
     } finally {
       setLoading(false);
     }
