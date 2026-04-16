@@ -20,6 +20,7 @@ export function TeamBuilderPage() {
   const [busy, setBusy] = useState(false);
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [transferMarketOpen, setTransferMarketOpen] = useState(true);
+  const [poolLoadFinished, setPoolLoadFinished] = useState(false);
 
   async function refresh() {
     try {
@@ -45,6 +46,8 @@ export function TeamBuilderPage() {
         await refresh();
       } catch {
         if (!cancelled) setError("Failed to load data");
+      } finally {
+        if (!cancelled) setPoolLoadFinished(true);
       }
     })();
     return () => {
@@ -269,6 +272,13 @@ export function TeamBuilderPage() {
       <div id="player-pool" className="text-left">
         <h2 className="text-lg font-semibold text-white">Player pool</h2>
         <p className="mt-1 text-sm text-slate-400">Tap a card to add or remove from your squad.</p>
+        {poolLoadFinished && !error && players.length === 0 ? (
+          <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            The pool is empty until the database is seeded. From <code className="rounded bg-black/30 px-1">mun-fantasy/backend</code> run{" "}
+            <code className="rounded bg-black/30 px-1">npm run db:seed</code> with your production <code className="rounded bg-black/30 px-1">DATABASE_URL</code>{" "}
+            (see README). Seeding clears existing fantasy lineups and matches.
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap justify-center gap-4">
           {players.map((p) => {
             const inSquad = squadIds.has(p.id);

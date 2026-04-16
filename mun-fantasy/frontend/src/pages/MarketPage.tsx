@@ -7,6 +7,7 @@ export function MarketPage() {
   const [players, setPlayers] = useState<ApiPlayer[]>([]);
   const [team, setTeam] = useState<string>("ALL");
   const [error, setError] = useState<string | null>(null);
+  const [loadFinished, setLoadFinished] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -16,6 +17,8 @@ export function MarketPage() {
         if (!cancelled) setPlayers(data);
       } catch {
         if (!cancelled) setError("Failed to load players");
+      } finally {
+        if (!cancelled) setLoadFinished(true);
       }
     })();
     return () => {
@@ -59,6 +62,14 @@ export function MarketPage() {
       </div>
 
       {error ? <div className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div> : null}
+
+      {loadFinished && !error && players.length === 0 ? (
+        <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          No players in the database yet. From <code className="rounded bg-black/30 px-1">mun-fantasy/backend</code> run{" "}
+          <code className="rounded bg-black/30 px-1">npm run db:seed</code> with <code className="rounded bg-black/30 px-1">DATABASE_URL</code> pointing at
+          production (Neon). That loads the JSON teams and also resets fantasy squads and matches—see the README.
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap justify-center gap-4">
         {filtered.map((p) => (
