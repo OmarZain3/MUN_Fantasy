@@ -46,6 +46,21 @@ mun-fantasy/
     .env.example
 ```
 
+## Render: “Dockerfile: no such file or directory”
+
+Render’s **Docker** build looks for a file named **`Dockerfile` at the Git root** unless you change settings.
+
+Pick **one** approach:
+
+1. **Recommended:** In the Render service → **Settings** → **Root Directory**, set  
+   - **`mun-fantasy/backend`** if your GitHub repo looks like `mun-fantasy/backend/...` at the top level under a `mun-fantasy` folder, **or**  
+   - **`backend`** if `backend/` and `frontend/` sit at the **repository root** (no extra `mun-fantasy` folder).  
+   Leave **Dockerfile Path** as default `Dockerfile` (uses `backend/Dockerfile`).
+
+2. **Alternative (monorepo root build):** If the repository root is the **`MUN_Fantasy`** folder that contains `mun-fantasy/backend`, commit the **`Dockerfile` at that repository root** (next to `mun-fantasy/`) and deploy from the root without setting Root Directory. That root `Dockerfile` copies from `mun-fantasy/backend/`.
+
+Also fix the Render warning **“we don’t have access to your repo”**: GitHub → **Settings → Applications → Render** (or Render dashboard → **Account → GitHub**) and grant access to **`OmarZain3/MUN_Fantasy`** (or reinstall the Render GitHub app for that repo).
+
 ## CI (GitHub Actions)
 
 On push/PR to `main` or `master`, **`.github/workflows/ci.yml`** runs:
