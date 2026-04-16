@@ -1,0 +1,12 @@
+[
+  { "name": "Youssef Hegawy", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Omar Abdelghafar", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Kamal Said", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Youssef Hussein", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Youssef Islam", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Moustafa Abuelmagd", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Ahmed Hemida", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Mohamed Tamer", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Ahmed Essam", "team": "Athar", "isGK": false, "imageUrl": null },
+  { "name": "Youssef Abdelsattar", "team": "Athar", "isGK": false, "imageUrl": null }
+]

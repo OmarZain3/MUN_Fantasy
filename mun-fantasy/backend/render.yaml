@@ -1,0 +1,9 @@
+# Optional Render Blueprint: set the service root to this `backend` folder in the Render dashboard
+# (Repository → New Web Service → Root Directory = mun-fantasy/backend).
+services:
+  - type: web
+    name: mun-fantasy-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health

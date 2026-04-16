@@ -1,0 +1,9 @@
+[
+  { "name": "Aly Gaafar", "team": "VGS", "isGK": false, "imageUrl": null },
+  { "name": "Tarek Sherif", "team": "VGS", "isGK": false, "imageUrl": null },
+  { "name": "Abdulrahman Walid", "team": "VGS", "isGK": false, "imageUrl": null },
+  { "name": "Ali Raif", "team": "VGS", "isGK": false, "imageUrl": null },
+  { "name": "Abdallah Fawaz", "team": "VGS", "isGK": false, "imageUrl": null },
+  { "name": "Mohamed Oraby", "team": "VGS", "isGK": false, "imageUrl": null },
+  { "name": "Abdelrahman Salah", "team": "VGS", "isGK": false, "imageUrl": null }
+]

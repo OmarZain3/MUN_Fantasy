@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+  <rect x="2" y="4" width="32" height="32" rx="8" fill="#083F5E" />
+  <circle cx="18" cy="20" r="3" fill="#7dd3fc" />
+  <text x="44" y="27" fill="#EECC4E" font-family="system-ui,Segoe UI,sans-serif" font-size="16" font-weight="700">MUN</text>
+  <text x="92" y="27" fill="#7dd3fc" font-family="system-ui,Segoe UI,sans-serif" font-size="14" font-weight="600">Fantasy</text>
+</svg>

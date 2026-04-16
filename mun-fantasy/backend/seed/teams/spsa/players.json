@@ -1,0 +1,12 @@
+[
+  { "name": "Rabie Zewil", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Loay Marwan", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Amr Negm", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Mohand Elshafiy", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Mohamed Wael Saed", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Ali Mostafa Fadl", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Ali Heggy", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Omar Abdelghany", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Hasan Marwan", "team": "SPSA", "isGK": false, "imageUrl": null },
+  { "name": "Ahmed Ali", "team": "SPSA", "isGK": false, "imageUrl": null }
+]

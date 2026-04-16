@@ -1,0 +1,12 @@
+[
+  { "name": "Omar Ashraf", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Mostafa Abdelatif", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Mohammed Haitham", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Ahmed Hany", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Yassin Mahmoud", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Albraa", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Ahmed Gomaa", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Mohanad", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Amr Abdelmoneim", "team": "AISEC", "isGK": false, "imageUrl": null },
+  { "name": "Ali Alaa", "team": "AISEC", "isGK": false, "imageUrl": null }
+]
