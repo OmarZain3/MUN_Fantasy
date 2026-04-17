@@ -8,6 +8,27 @@ type AdminUser = { id: string; email: string; isAdmin: boolean; createdAt: strin
 
 type LeagueSettingsDto = { transferMarketOpen: boolean };
 
+function localDateKey(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${da}`;
+}
+
+function localHour(iso: string): number {
+  return new Date(iso).getHours();
+}
+
+function todayLocalDateKey(): string {
+  const t = new Date();
+  const y = t.getFullYear();
+  const mo = String(t.getMonth() + 1).padStart(2, "0");
+  const da = String(t.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${da}`;
+}
+
 export function AdminPage() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const [matches, setMatches] = useState<ApiMatch[]>([]);
@@ -25,6 +46,14 @@ export function AdminPage() {
   const [assignUserId, setAssignUserId] = useState("");
   const [assignCourt, setAssignCourt] = useState("Court A");
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [matchDay, setMatchDay] = useState("");
+  const [matchHourFrom, setMatchHourFrom] = useState("");
+  const [matchHourTo, setMatchHourTo] = useState("");
+  const [matchCourtFilter, setMatchCourtFilter] = useState<"ALL" | "Court A" | "Court B" | "Court C" | "Court D">(
+    "ALL",
+  );
+  const [matchStatusFilter, setMatchStatusFilter] = useState<"ALL" | "UPCOMING" | "LIVE" | "FINISHED">("ALL");
 
   const teamBOptions = useMemo(() => teams.filter((t) => t !== teamA), [teams, teamA]);
   const canCreateMatch = teams.length >= 2 && teamBOptions.length > 0 && Boolean(teamA) && Boolean(teamB);
@@ -68,6 +97,28 @@ export function AdminPage() {
   }, [teams, teamA, teamB]);
 
   const userOptions = useMemo(() => users.filter((u) => !u.isAdmin), [users]);
+
+  const filteredMatches = useMemo(() => {
+    let list = [...matches].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
+    if (matchCourtFilter !== "ALL") list = list.filter((m) => m.court === matchCourtFilter);
+    if (matchStatusFilter !== "ALL") list = list.filter((m) => m.status === matchStatusFilter);
+    if (matchDay) {
+      list = list.filter((m) => localDateKey(m.startTime) === matchDay);
+      if (matchHourFrom !== "") {
+        const hf = Number(matchHourFrom);
+        if (!Number.isNaN(hf)) list = list.filter((m) => localHour(m.startTime) >= hf);
+      }
+      if (matchHourTo !== "") {
+        const ht = Number(matchHourTo);
+        if (!Number.isNaN(ht)) list = list.filter((m) => localHour(m.startTime) <= ht);
+      }
+    }
+    return list;
+  }, [matches, matchCourtFilter, matchStatusFilter, matchDay, matchHourFrom, matchHourTo]);
+
+  const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i)), []);
 
   if (!isAdmin) return <Navigate to="/market" replace />;
 
@@ -297,15 +348,113 @@ export function AdminPage() {
 
       <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <h2 className="text-lg font-semibold text-white">Matches</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Filter by scheduled day (your local time), optional hour window that day, court, and status.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-sm text-slate-200">
+            Day
+            <input
+              type="date"
+              className="mt-1 block rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+              value={matchDay}
+              onChange={(e) => setMatchDay(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15"
+            onClick={() => setMatchDay(todayLocalDateKey())}
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15"
+            onClick={() => {
+              setMatchDay("");
+              setMatchHourFrom("");
+              setMatchHourTo("");
+              setMatchCourtFilter("ALL");
+              setMatchStatusFilter("ALL");
+            }}
+          >
+            Clear filters
+          </button>
+          <label className={`text-sm text-slate-200 ${matchDay ? "" : "opacity-50"}`}>
+            From hour
+            <select
+              className="mt-1 block rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white disabled:opacity-50"
+              value={matchHourFrom}
+              disabled={!matchDay}
+              onChange={(e) => setMatchHourFrom(e.target.value)}
+            >
+              <option value="">Any</option>
+              {hourOptions.map((h) => (
+                <option key={h} value={h}>
+                  {h}:00
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={`text-sm text-slate-200 ${matchDay ? "" : "opacity-50"}`}>
+            To hour
+            <select
+              className="mt-1 block rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white disabled:opacity-50"
+              value={matchHourTo}
+              disabled={!matchDay}
+              onChange={(e) => setMatchHourTo(e.target.value)}
+            >
+              <option value="">Any</option>
+              {hourOptions.map((h) => (
+                <option key={h} value={h}>
+                  {h}:59
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-slate-200">
+            Court
+            <select
+              className="mt-1 block rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+              value={matchCourtFilter}
+              onChange={(e) => setMatchCourtFilter(e.target.value as typeof matchCourtFilter)}
+            >
+              <option value="ALL">All courts</option>
+              {["Court A", "Court B", "Court C", "Court D"].map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-slate-200">
+            Status
+            <select
+              className="mt-1 block rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+              value={matchStatusFilter}
+              onChange={(e) => setMatchStatusFilter(e.target.value as typeof matchStatusFilter)}
+            >
+              <option value="ALL">All</option>
+              <option value="UPCOMING">UPCOMING</option>
+              <option value="LIVE">LIVE</option>
+              <option value="FINISHED">FINISHED</option>
+            </select>
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Showing {filteredMatches.length} of {matches.length} matches
+        </p>
         <div className="mt-3 space-y-2">
-          {matches.map((m) => (
+          {filteredMatches.map((m) => (
             <div key={m.id} className="flex flex-col gap-2 rounded-xl bg-black/20 p-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-sm text-white">
                   {m.teamA} vs {m.teamB}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {m.status} · Court {m.court} · Score {m.scoreTeamA}-{m.scoreTeamB}
+                  {new Date(m.startTime).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} ·{" "}
+                  {m.status} · {m.court} · Score {m.scoreTeamA}-{m.scoreTeamB}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -328,6 +477,10 @@ export function AdminPage() {
               </div>
             </div>
           ))}
+          {filteredMatches.length === 0 && matches.length > 0 ? (
+            <p className="text-sm text-slate-400">No matches match the current filters.</p>
+          ) : null}
+          {matches.length === 0 ? <p className="text-sm text-slate-400">No matches yet.</p> : null}
         </div>
       </section>
     </div>

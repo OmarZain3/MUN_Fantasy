@@ -1,0 +1,12 @@
+[
+  { "name": "Ahmed Ashraf", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Ahmed Hagras", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Fares", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Mohamed Hagras", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Mohamed Zohary", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Mostafa Mohamed", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Youssef Emad", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Youssef Shabana", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Yehya Shenofy", "team": "AYB", "isGK": false, "imageUrl": null },
+  { "name": "Yehya Hesham", "team": "AYB", "isGK": false, "imageUrl": null }
+]

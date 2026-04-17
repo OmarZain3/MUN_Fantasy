@@ -4,6 +4,7 @@ import { Pitch } from "@/components/Pitch";
 import PlayerCard2 from "@/components/PlayerCard2";
 import { GUC_MUN_PLAYER_CARD_SRC } from "@/lib/gucLogos";
 import { api } from "@/lib/api";
+import { filterPlayersByTeamAndSearch } from "@/lib/filterPlayers";
 import type { ApiPlayer, FantasyTeamResponse, FantasyTeamPlayer } from "@/types";
 
 const MAX_SQUAD = 7;
@@ -21,6 +22,8 @@ export function TeamBuilderPage() {
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [transferMarketOpen, setTransferMarketOpen] = useState(true);
   const [poolLoadFinished, setPoolLoadFinished] = useState(false);
+  const [poolTeam, setPoolTeam] = useState("ALL");
+  const [poolSearch, setPoolSearch] = useState("");
 
   async function refresh() {
     try {
@@ -160,6 +163,17 @@ export function TeamBuilderPage() {
 
   const squadCount = fantasy?.players.length ?? 0;
 
+  const poolTeams = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of players) s.add(p.team);
+    return ["ALL", ...Array.from(s).sort()];
+  }, [players]);
+
+  const poolDisplayed = useMemo(
+    () => filterPlayersByTeamAndSearch(players, poolTeam, poolSearch),
+    [players, poolTeam, poolSearch],
+  );
+
   return (
     <div className="space-y-6 text-left">
       <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-start">
@@ -271,7 +285,34 @@ export function TeamBuilderPage() {
 
       <div id="player-pool" className="text-left">
         <h2 className="text-lg font-semibold text-white">Player pool</h2>
-        <p className="mt-1 text-sm text-slate-400">Tap a card to add or remove from your squad.</p>
+        <p className="mt-1 text-sm text-slate-400">Filter by team, search by name, then tap a card to add or remove from your squad.</p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-sm text-slate-200">
+            Team
+            <select
+              className="mt-1 block rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+              value={poolTeam}
+              onChange={(e) => setPoolTeam(e.target.value)}
+            >
+              {poolTeams.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="min-w-[12rem] flex-1 text-sm text-slate-200 sm:min-w-[16rem]">
+            Search name
+            <input
+              type="search"
+              placeholder="Player or team…"
+              className="mt-1 block w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+              value={poolSearch}
+              onChange={(e) => setPoolSearch(e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+        </div>
         {poolLoadFinished && !error && players.length === 0 ? (
           <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
             The pool is empty until the database is seeded. From <code className="rounded bg-black/30 px-1">mun-fantasy/backend</code> run{" "}
@@ -279,8 +320,11 @@ export function TeamBuilderPage() {
             (see README). Seeding clears existing fantasy lineups and matches.
           </div>
         ) : null}
+        {poolLoadFinished && !error && poolDisplayed.length === 0 && players.length > 0 ? (
+          <p className="mt-3 text-sm text-slate-400">No players match this team or search.</p>
+        ) : null}
         <div className="mt-3 flex flex-wrap justify-center gap-4">
-          {players.map((p) => {
+          {poolDisplayed.map((p) => {
             const inSquad = squadIds.has(p.id);
             const gkBlocked = p.isGK && squadHasGk && !inSquad;
             const baseDisabled =

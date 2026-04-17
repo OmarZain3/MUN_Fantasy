@@ -1,9 +1,10 @@
 [
   { "name": "Shiko", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
-  { "name": "Zain", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
+  { "name": "Omar Zain", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
   { "name": "Nagaty", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
   { "name": "Mazen Moataz", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
-  { "name": "Mohamed Mshraf", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
+  { "name": "Mohamed Ashraf", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
   { "name": "Gobran", "team": "Retro Inspire", "isGK": false, "imageUrl": null },
   { "name": "Bsheir", "team": "Retro Inspire", "isGK": false, "imageUrl": null }
 ]
+  
