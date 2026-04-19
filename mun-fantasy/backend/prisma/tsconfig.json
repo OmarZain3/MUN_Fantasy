@@ -9,5 +9,5 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["seed.ts"]
+  "include": ["seed.ts", "seed-team.ts"]
 }

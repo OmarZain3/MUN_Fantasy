@@ -5,6 +5,7 @@
   "scripts": {
     "ci": "npm run ci --prefix backend && npm run ci --prefix frontend",
     "db:seed": "cd backend && npm run db:seed",
+    "db:seed:team": "cd backend && npm run db:seed:team --",
     "db:migrate": "cd backend && npx prisma migrate deploy",
     "prisma:generate": "cd backend && npm run prisma:generate",
     "prisma:migrate": "cd backend && npm run prisma:migrate",

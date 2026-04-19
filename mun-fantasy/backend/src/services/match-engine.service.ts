@@ -5,6 +5,19 @@ import { CLEAN_SHEET_BONUS_PER_GK, gkConcededPenaltyTotalPoints } from "../const
 import { applyPointsToPlayer, pointsDeltaForEvent } from "./points.service.js";
 import { emitCardAdded, emitGoalAdded, emitMatchUpdate } from "./socket.service.js";
 
+/** Coordinator uses defaults. Admin “offline prep” passes `{ requireLive: false, emitSocket: false }`. */
+export type MatchMutationOpts = {
+  requireLive?: boolean;
+  emitSocket?: boolean;
+};
+
+function resolvedMutationOpts(opts?: MatchMutationOpts): { requireLive: boolean; emitSocket: boolean } {
+  return {
+    requireLive: opts?.requireLive ?? true,
+    emitSocket: opts?.emitSocket ?? true,
+  };
+}
+
 function assertTeamInMatch(player: Pick<Player, "team">, match: Pick<Match, "teamA" | "teamB">) {
   if (player.team !== match.teamA && player.team !== match.teamB) {
     throw new AppError("Player team is not part of this match", 400, "INVALID_TEAM");
@@ -40,23 +53,35 @@ async function refreshMatch(matchId: string) {
   });
 }
 
-export async function assertMatchLive(matchId: string) {
+async function loadMatchForMutation(matchId: string, opts: { requireLive: boolean }) {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) throw new AppError("Match not found", 404);
-  if (match.status !== "LIVE") {
-    throw new AppError("Match must be LIVE to perform this action", 400, "MATCH_NOT_LIVE");
+  if (opts.requireLive) {
+    if (match.status !== "LIVE") {
+      throw new AppError("Match must be LIVE to perform this action", 400, "MATCH_NOT_LIVE");
+    }
+  } else if (match.status !== "UPCOMING") {
+    throw new AppError(
+      "This change is only allowed before kickoff (match must be UPCOMING).",
+      400,
+      "MATCH_NOT_UPCOMING",
+    );
   }
   return match;
 }
 
-export async function addGoal(input: {
-  matchId: string;
-  scorerId: string;
-  assistId?: string | null;
-  minute: number;
-  isOwnGoal: boolean;
-}) {
-  const match = await assertMatchLive(input.matchId);
+export async function addGoal(
+  input: {
+    matchId: string;
+    scorerId: string;
+    assistId?: string | null;
+    minute: number;
+    isOwnGoal: boolean;
+  },
+  mutationOpts?: MatchMutationOpts,
+) {
+  const { requireLive, emitSocket } = resolvedMutationOpts(mutationOpts);
+  const match = await loadMatchForMutation(input.matchId, { requireLive });
   const scorer = await prisma.player.findUnique({ where: { id: input.scorerId } });
   if (!scorer) throw new AppError("Scorer not found", 404);
   assertTeamInMatch(scorer, match);
@@ -140,13 +165,19 @@ export async function addGoal(input: {
 
   const full = await refreshMatch(match.id);
 
-  emitGoalAdded(match.id, { match: full });
-  emitMatchUpdate(match.id, { match: full });
+  if (emitSocket) {
+    emitGoalAdded(match.id, { match: full });
+    emitMatchUpdate(match.id, { match: full });
+  }
   return full;
 }
 
-export async function addCard(input: { matchId: string; playerId: string; type: MatchEventType; minute: number }) {
-  const match = await assertMatchLive(input.matchId);
+export async function addCard(
+  input: { matchId: string; playerId: string; type: MatchEventType; minute: number },
+  mutationOpts?: MatchMutationOpts,
+) {
+  const { requireLive, emitSocket } = resolvedMutationOpts(mutationOpts);
+  const match = await loadMatchForMutation(input.matchId, { requireLive });
   const allowed: MatchEventType[] = ["YELLOW", "SECOND_YELLOW", "RED"];
   if (!allowed.includes(input.type)) {
     throw new AppError("Invalid card type", 400);
@@ -186,18 +217,24 @@ export async function addCard(input: { matchId: string; playerId: string; type: 
   ]);
 
   const full = await refreshMatch(match.id);
-  emitCardAdded(match.id, { match: full, card: { playerId: player.id, type: input.type, minute: input.minute } });
-  emitMatchUpdate(match.id, { match: full });
+  if (emitSocket) {
+    emitCardAdded(match.id, { match: full, card: { playerId: player.id, type: input.type, minute: input.minute } });
+    emitMatchUpdate(match.id, { match: full });
+  }
   return full;
 }
 
-export async function addPenalty(input: {
-  matchId: string;
-  playerId: string;
-  type: "PENALTY_MISS" | "PENALTY_SAVE";
-  minute: number;
-}) {
-  const match = await assertMatchLive(input.matchId);
+export async function addPenalty(
+  input: {
+    matchId: string;
+    playerId: string;
+    type: "PENALTY_MISS" | "PENALTY_SAVE";
+    minute: number;
+  },
+  mutationOpts?: MatchMutationOpts,
+) {
+  const { requireLive, emitSocket } = resolvedMutationOpts(mutationOpts);
+  const match = await loadMatchForMutation(input.matchId, { requireLive });
   const player = await prisma.player.findUnique({ where: { id: input.playerId } });
   if (!player) throw new AppError("Player not found", 404);
   assertTeamInMatch(player, match);
@@ -218,12 +255,16 @@ export async function addPenalty(input: {
   ]);
 
   const full = await refreshMatch(match.id);
-  emitMatchUpdate(match.id, { match: full });
+  if (emitSocket) emitMatchUpdate(match.id, { match: full });
   return full;
 }
 
-export async function updateScore(input: { matchId: string; scoreTeamA: number; scoreTeamB: number }) {
-  const match = await assertMatchLive(input.matchId);
+export async function updateScore(
+  input: { matchId: string; scoreTeamA: number; scoreTeamB: number },
+  mutationOpts?: MatchMutationOpts,
+) {
+  const { requireLive, emitSocket } = resolvedMutationOpts(mutationOpts);
+  const match = await loadMatchForMutation(input.matchId, { requireLive });
   if (input.scoreTeamA < 0 || input.scoreTeamB < 0) {
     throw new AppError("Scores cannot be negative", 400);
   }
@@ -242,7 +283,7 @@ export async function updateScore(input: { matchId: string; scoreTeamA: number; 
   await applyGkConcededPenaltyDelta(match.id, match.teamB, oldBConceded, newBConceded);
 
   const full = await refreshMatch(match.id);
-  emitMatchUpdate(match.id, { match: full });
+  if (emitSocket) emitMatchUpdate(match.id, { match: full });
   return full;
 }
 

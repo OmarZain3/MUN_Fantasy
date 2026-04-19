@@ -4,7 +4,13 @@ import { authRequired } from "../middleware/auth.js";
 import { adminRequired } from "../middleware/admin.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { prisma } from "../lib/prisma.js";
-import { applyCleanSheetBonuses } from "../services/match-engine.service.js";
+import {
+  addCard,
+  addGoal,
+  addPenalty,
+  applyCleanSheetBonuses,
+  updateScore,
+} from "../services/match-engine.service.js";
 import { resetAllRoundPoints } from "../services/points.service.js";
 import { emitMatchUpdate } from "../services/socket.service.js";
 import { getLeagueSettings, setTransferMarketOpen } from "../services/league-settings.service.js";
@@ -99,9 +105,118 @@ adminRouter.get("/matches", async (_req, res, next) => {
   }
 });
 
+const offlineMutationOpts = { requireLive: false, emitSocket: false } as const;
+
+adminRouter.get("/matches/:id/roster", async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const match = await prisma.match.findUnique({ where: { id } });
+    if (!match) throw new AppError("Match not found", 404);
+    const players = await prisma.player.findMany({
+      where: { team: { in: [match.teamA, match.teamB] } },
+      orderBy: [{ name: "asc" }, { team: "asc" }, { isGK: "asc" }],
+    });
+    res.json({ match, players });
+  } catch (e) {
+    next(e);
+  }
+});
+
+adminRouter.patch("/matches/:id/score", async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const body = z
+      .object({
+        scoreTeamA: z.number().int().min(0),
+        scoreTeamB: z.number().int().min(0),
+      })
+      .parse(req.body);
+    const full = await updateScore(
+      { matchId: id, scoreTeamA: body.scoreTeamA, scoreTeamB: body.scoreTeamB },
+      offlineMutationOpts,
+    );
+    res.json(full);
+  } catch (e) {
+    next(e instanceof z.ZodError ? new AppError(e.errors[0]?.message ?? "Invalid body", 400) : e);
+  }
+});
+
+adminRouter.post("/matches/:id/events/goal", async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const body = z
+      .object({
+        scorerId: z.string().min(1),
+        assistId: z.string().min(1).optional().nullable(),
+        minute: z.number().int().min(0).max(200),
+        isOwnGoal: z.boolean().optional().default(false),
+      })
+      .parse(req.body);
+    const full = await addGoal(
+      {
+        matchId: id,
+        scorerId: body.scorerId,
+        assistId: body.assistId ?? null,
+        minute: body.minute,
+        isOwnGoal: body.isOwnGoal,
+      },
+      offlineMutationOpts,
+    );
+    res.json(full);
+  } catch (e) {
+    next(e instanceof z.ZodError ? new AppError(e.errors[0]?.message ?? "Invalid body", 400) : e);
+  }
+});
+
+adminRouter.post("/matches/:id/events/card", async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const body = z
+      .object({
+        playerId: z.string().min(1),
+        minute: z.number().int().min(0).max(200),
+        type: z.enum(["YELLOW", "SECOND_YELLOW", "RED"]),
+      })
+      .parse(req.body);
+    const full = await addCard(
+      { matchId: id, playerId: body.playerId, type: body.type, minute: body.minute },
+      offlineMutationOpts,
+    );
+    res.json(full);
+  } catch (e) {
+    next(e instanceof z.ZodError ? new AppError(e.errors[0]?.message ?? "Invalid body", 400) : e);
+  }
+});
+
+adminRouter.post("/matches/:id/events/penalty", async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const body = z
+      .object({
+        playerId: z.string().min(1),
+        minute: z.number().int().min(0).max(200),
+        type: z.enum(["PENALTY_MISS", "PENALTY_SAVE"]),
+      })
+      .parse(req.body);
+    const full = await addPenalty(
+      { matchId: id, playerId: body.playerId, type: body.type, minute: body.minute },
+      offlineMutationOpts,
+    );
+    res.json(full);
+  } catch (e) {
+    next(e instanceof z.ZodError ? new AppError(e.errors[0]?.message ?? "Invalid body", 400) : e);
+  }
+});
+
 adminRouter.post("/matches/:id/status", async (req, res, next) => {
   try {
-    const body = z.object({ status: z.enum(["UPCOMING", "LIVE", "FINISHED"]) }).parse(req.body);
+    const body = z
+      .object({
+        status: z.enum(["UPCOMING", "LIVE", "FINISHED"]),
+        /** Lets you close a match that was fully entered while still UPCOMING (no LIVE phase). */
+        finishFromUpcoming: z.boolean().optional(),
+      })
+      .parse(req.body);
     const id = req.params.id;
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -111,8 +226,15 @@ adminRouter.post("/matches/:id/status", async (req, res, next) => {
       if (body.status === "LIVE" && current.status !== "UPCOMING") {
         throw new AppError("Only UPCOMING matches can go LIVE", 400, "INVALID_STATUS_FLOW");
       }
-      if (body.status === "FINISHED" && current.status !== "LIVE") {
-        throw new AppError("Only LIVE matches can be FINISHED", 400, "INVALID_STATUS_FLOW");
+      if (body.status === "FINISHED") {
+        const allowSkipLive = body.finishFromUpcoming === true && current.status === "UPCOMING";
+        if (current.status !== "LIVE" && !allowSkipLive) {
+          throw new AppError(
+            "Only LIVE matches can be FINISHED unless you set finishFromUpcoming: true on an UPCOMING match",
+            400,
+            "INVALID_STATUS_FLOW",
+          );
+        }
       }
 
       return tx.match.update({ where: { id }, data: { status: body.status } });

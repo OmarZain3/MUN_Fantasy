@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
-import type { ApiMatch } from "../types";
+import type { ApiMatch, ApiPlayer } from "../types";
 
 type AdminUser = { id: string; email: string; isAdmin: boolean; createdAt: string };
 
@@ -27,6 +27,235 @@ function todayLocalDateKey(): string {
   const mo = String(t.getMonth() + 1).padStart(2, "0");
   const da = String(t.getDate()).padStart(2, "0");
   return `${y}-${mo}-${da}`;
+}
+
+function OfflinePrepPanel({
+  match,
+  busy,
+  setBusy,
+  setError,
+  reload,
+}: {
+  match: ApiMatch;
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  setError: (msg: string | null) => void;
+  reload: () => Promise<void>;
+}) {
+  const [players, setPlayers] = useState<ApiPlayer[] | null>(null);
+  const [scoreA, setScoreA] = useState(match.scoreTeamA);
+  const [scoreB, setScoreB] = useState(match.scoreTeamB);
+  const [minute, setMinute] = useState(1);
+  const [scorerId, setScorerId] = useState("");
+  const [assistId, setAssistId] = useState("");
+  const [ownGoal, setOwnGoal] = useState(false);
+
+  useEffect(() => {
+    setScoreA(match.scoreTeamA);
+    setScoreB(match.scoreTeamB);
+  }, [match.id, match.scoreTeamA, match.scoreTeamB]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get<{ players: ApiPlayer[] }>(`/admin/matches/${match.id}/roster`);
+        if (!cancelled) setPlayers(data.players);
+      } catch {
+        if (!cancelled) setPlayers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [match.id]);
+
+  const scorer = players?.find((p) => p.id === scorerId);
+  const assistOptions = useMemo(() => {
+    if (!players || !scorer || ownGoal) return [];
+    return players.filter((p) => p.team === scorer.team && p.id !== scorer.id);
+  }, [players, scorer, ownGoal]);
+
+  async function saveScore() {
+    setError(null);
+    setBusy(true);
+    try {
+      await api.patch(`/admin/matches/${match.id}/score`, {
+        scoreTeamA: scoreA,
+        scoreTeamB: scoreB,
+      });
+      await reload();
+    } catch (e: unknown) {
+      setError(String((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addGoal() {
+    setError(null);
+    if (!scorerId) {
+      setError("Pick a scorer");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.post(`/admin/matches/${match.id}/events/goal`, {
+        scorerId,
+        assistId: ownGoal ? null : assistId || null,
+        minute,
+        isOwnGoal: ownGoal,
+      });
+      setAssistId("");
+      await reload();
+    } catch (e: unknown) {
+      setError(String((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markFinishedFromUpcoming() {
+    if (
+      !window.confirm(
+        "Mark this match FINISHED from UPCOMING? Use this after scores and events are entered offline. Clean-sheet bonuses will run.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await api.post(`/admin/matches/${match.id}/status`, { status: "FINISHED", finishFromUpcoming: true });
+      await reload();
+    } catch (e: unknown) {
+      setError(String((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="mt-2 rounded-lg border border-white/10 bg-black/25 p-2 text-xs">
+      <summary className="cursor-pointer select-none font-semibold text-amber-100/90">
+        Prep without going LIVE (scores, goals — no live socket feed)
+      </summary>
+      <div className="mt-3 space-y-4 text-slate-200">
+        <p className="text-slate-400">
+          Works only while the match is <span className="font-semibold text-white">UPCOMING</span>. Player points
+          update the same way as on the court; Socket.IO is not notified.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-slate-300">
+            Score {match.teamA}
+            <input
+              type="number"
+              min={0}
+              className="mt-1 block w-20 rounded border border-white/10 bg-black/40 px-2 py-1 text-white"
+              value={scoreA}
+              onChange={(e) => setScoreA(Number(e.target.value))}
+            />
+          </label>
+          <label className="text-slate-300">
+            Score {match.teamB}
+            <input
+              type="number"
+              min={0}
+              className="mt-1 block w-20 rounded border border-white/10 bg-black/40 px-2 py-1 text-white"
+              value={scoreB}
+              onChange={(e) => setScoreB(Number(e.target.value))}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void saveScore()}
+            className="rounded-lg bg-amber-500/25 px-3 py-1.5 font-semibold text-amber-50 ring-1 ring-amber-400/40 hover:bg-amber-500/35 disabled:opacity-40"
+          >
+            Save score
+          </button>
+        </div>
+        <div className="grid gap-2 border-t border-white/10 pt-3 md:grid-cols-2">
+          <label className="text-slate-300">
+            Minute
+            <input
+              type="number"
+              min={0}
+              max={200}
+              className="mt-1 block w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-white"
+              value={minute}
+              onChange={(e) => setMinute(Number(e.target.value))}
+            />
+          </label>
+          <label className="flex items-center gap-2 pt-6 text-slate-300">
+            <input type="checkbox" checked={ownGoal} onChange={(e) => setOwnGoal(e.target.checked)} />
+            Own goal
+          </label>
+          <label className="text-slate-300 md:col-span-2">
+            Scorer
+            <select
+              className="mt-1 block w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-white"
+              value={scorerId}
+              onChange={(e) => {
+                setScorerId(e.target.value);
+                setAssistId("");
+              }}
+            >
+              <option value="">Select…</option>
+              {(players ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.team})
+                </option>
+              ))}
+            </select>
+          </label>
+          {!ownGoal ? (
+            <label className="text-slate-300 md:col-span-2">
+              Assist (optional)
+              <select
+                className="mt-1 block w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-white"
+                value={assistId}
+                onChange={(e) => setAssistId(e.target.value)}
+              >
+                <option value="">None</option>
+                {assistOptions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <button
+            type="button"
+            disabled={busy || !scorerId}
+            onClick={() => void addGoal()}
+            className="md:col-span-2 rounded-lg bg-white/10 px-3 py-2 font-semibold text-white hover:bg-white/15 disabled:opacity-40"
+          >
+            Record goal (+ points)
+          </button>
+        </div>
+        {match.events && match.events.length > 0 ? (
+          <div className="border-t border-white/10 pt-2">
+            <div className="mb-1 font-semibold text-slate-400">Events on file</div>
+            <ul className="max-h-28 list-inside list-disc overflow-y-auto text-slate-400">
+              {match.events.map((ev) => (
+                <li key={ev.id}>{`${ev.minute}' ${ev.type} — ${ev.player.name}`}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void markFinishedFromUpcoming()}
+          className="w-full rounded-lg bg-emerald-600/30 px-3 py-2 font-semibold text-emerald-50 ring-1 ring-emerald-400/40 hover:bg-emerald-600/45 disabled:opacity-40"
+        >
+          Mark FINISHED (skip LIVE)
+        </button>
+      </div>
+    </details>
+  );
 }
 
 export function AdminPage() {
@@ -475,6 +704,9 @@ export function AdminPage() {
                   Finish
                 </button>
               </div>
+              {m.status === "UPCOMING" ? (
+                <OfflinePrepPanel match={m} busy={busy} setBusy={setBusy} setError={setError} reload={reload} />
+              ) : null}
             </div>
           ))}
           {filteredMatches.length === 0 && matches.length > 0 ? (
